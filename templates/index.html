@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Asistente PDF por Voz</title>
+
+<style>
+
+body{
+    font-family: Arial;
+    max-width: 900px;
+    margin:auto;
+    padding:40px;
+}
+
+button{
+    padding:15px;
+    font-size:18px;
+    cursor:pointer;
+}
+
+#pregunta{
+    margin-top:20px;
+    font-weight:bold;
+}
+
+#respuesta{
+    margin-top:20px;
+    font-size:20px;
+}
+
+</style>
+</head>
+<body>
+
+<h1>Asistente PDF 🎤</h1>
+
+<button onclick="escuchar()">
+Hablar
+</button>
+
+<div id="pregunta"></div>
+<div id="respuesta"></div>
+
+<script>
+
+function escuchar(){
+
+    const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
+
+    const recognition = new SpeechRecognition();
+
+    recognition.lang = "es-ES";
+
+    recognition.start();
+
+    recognition.onresult = async function(event){
+
+        const pregunta =
+            event.results[0][0].transcript;
+
+        document.getElementById("pregunta")
+            .innerHTML =
+            "Pregunta: " + pregunta;
+
+        const respuesta = await fetch(
+            "/preguntar",
+            {
+                method:"POST",
+                headers:{
+                    "Content-Type":"application/json"
+                },
+                body:JSON.stringify({
+                    pregunta:pregunta
+                })
+            }
+        );
+
+        const data = await respuesta.json();
+
+        document.getElementById("respuesta")
+            .innerHTML =
+            "<b>Respuesta:</b><br><br>" +
+            data.respuesta;
+
+        const voz =
+            new SpeechSynthesisUtterance(
+                data.respuesta
+            );
+
+        voz.lang = "es-ES";
+
+        speechSynthesis.speak(voz);
+    };
+}
+
+</script>
+
+</body>
+</html>

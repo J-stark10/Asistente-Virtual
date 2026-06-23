@@ -36,13 +36,6 @@ app = Flask(__name__)
 preguntas_respuestas = {}
 
 
-import re
-
-def limpiar_texto(texto):
-    texto = texto.replace("\n", " ")
-    texto = re.sub(r"\s+", " ", texto)
-    texto = texto.replace("￾", "")
-    return texto
 
 def cargar_pdf():
     global preguntas_respuestas
@@ -53,7 +46,7 @@ def cargar_pdf():
         for pagina in pdf.pages:
             contenido = pagina.extract_text(x_tolerance=2, y_tolerance=2)
             if contenido:
-                texto += limpiar_texto(contenido + "\n")
+                texto += contenido + "\n"
 
     texto = texto.replace("￾", "")
 

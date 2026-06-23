@@ -2,9 +2,47 @@ from flask import Flask, render_template, request, jsonify
 import pdfplumber
 from rapidfuzz import process
 
+
+def corregir_texto(texto):
+
+    texto = texto.lower()
+
+    correcciones = {
+        "api rest": "api restful",
+        "api rest full": "api restful",
+        "a p i": "api",
+        "git hub": "github",
+        "git ignore": ".gitignore",
+        "git ignor": ".gitignore",
+        "j son": "json",
+        "json": "json",
+        "jwt": "jwt",
+        "micro servicios": "microservicios",
+        "crm": "crm",
+        "erp": "erp",
+        "sql": "sql",
+        "html": "html",
+        "css": "css",
+        "javascript": "javascript"
+    }
+
+    for mal, bien in correcciones.items():
+        texto = texto.replace(mal, bien)
+
+    return texto
+
 app = Flask(__name__)
 
 preguntas_respuestas = {}
+
+
+import re
+
+def limpiar_texto(texto):
+    texto = texto.replace("\n", " ")
+    texto = re.sub(r"\s+", " ", texto)
+    texto = texto.replace("￾", "")
+    return texto
 
 def cargar_pdf():
     global preguntas_respuestas
@@ -13,9 +51,11 @@ def cargar_pdf():
 
     with pdfplumber.open("documento.pdf") as pdf:
         for pagina in pdf.pages:
-            contenido = pagina.extract_text()
+            contenido = pagina.extract_text(x_tolerance=2, y_tolerance=2)
             if contenido:
-                texto += contenido + "\n"
+                texto += limpiar_texto(contenido + "\n")
+
+    texto = texto.replace("￾", "")
 
     lineas = [l.strip() for l in texto.split("\n") if l.strip()]
 
@@ -48,12 +88,15 @@ def preguntar():
 
     pregunta_usuario = request.json["pregunta"]
 
+    # 🔥 limpiar voz mal entendida
+    pregunta_usuario = corregir_texto(pregunta_usuario)
+
     mejor = process.extractOne(
         pregunta_usuario,
         preguntas_respuestas.keys()
     )
 
-    if mejor and mejor[1] > 50:
+    if mejor and mejor[1] > 40:   # 👈 más flexible
         respuesta = preguntas_respuestas[mejor[0]]
     else:
         respuesta = "No encontré una respuesta en el documento."

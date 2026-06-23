@@ -2,45 +2,150 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Asistente PDF por Voz</title>
 
 <style>
 
-body{
-    font-family: Arial;
-    max-width: 900px;
-    margin:auto;
-    padding:40px;
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
 }
 
-button{
-    padding:15px;
-    font-size:18px;
+body{
+    font-family: Arial, sans-serif;
+    background:#f5f7fa;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:20px;
+}
+
+.container{
+    width:100%;
+    max-width:700px;
+    background:white;
+    border-radius:20px;
+    padding:25px;
+    box-shadow:0 5px 20px rgba(0,0,0,.1);
+}
+
+h1{
+    text-align:center;
+    margin-bottom:25px;
+    color:#222;
+    font-size:2rem;
+}
+
+.btn{
+    width:100%;
+    border:none;
+    border-radius:15px;
+    padding:18px;
+    font-size:1.2rem;
+    font-weight:bold;
     cursor:pointer;
+    background:#2563eb;
+    color:white;
+    transition:.3s;
+}
+
+.btn:hover{
+    transform:scale(1.02);
+}
+
+.btn:active{
+    transform:scale(.98);
+}
+
+.card{
+    margin-top:20px;
+    padding:18px;
+    border-radius:15px;
+    background:#f8fafc;
+}
+
+.label{
+    font-weight:bold;
+    margin-bottom:10px;
+    color:#444;
 }
 
 #pregunta{
-    margin-top:20px;
-    font-weight:bold;
+    font-size:1.1rem;
+    line-height:1.6;
 }
 
 #respuesta{
-    margin-top:20px;
-    font-size:20px;
+    font-size:1.2rem;
+    line-height:1.8;
+    color:#111;
+}
+
+.estado{
+    margin-top:15px;
+    text-align:center;
+    font-size:1rem;
+    color:#666;
+}
+
+/* Celulares */
+
+@media(max-width:600px){
+
+    .container{
+        padding:20px;
+    }
+
+    h1{
+        font-size:1.7rem;
+    }
+
+    .btn{
+        font-size:1.15rem;
+        padding:20px;
+    }
+
+    #pregunta{
+        font-size:1.15rem;
+    }
+
+    #respuesta{
+        font-size:1.25rem;
+    }
+
 }
 
 </style>
 </head>
 <body>
 
-<h1>Asistente PDF 🎤</h1>
+<div class="container">
 
-<button onclick="escuchar()">
-Hablar
-</button>
+    <h1>🎤 Asistente PDF</h1>
 
-<div id="pregunta"></div>
-<div id="respuesta"></div>
+    <button class="btn" onclick="escuchar()">
+        Hablar Ahora
+    </button>
+
+    <div class="estado" id="estado">
+        Presiona el botón y realiza tu pregunta
+    </div>
+
+    <div class="card">
+        <div class="label">Pregunta detectada:</div>
+        <div id="pregunta">---</div>
+    </div>
+
+    <div class="card">
+        <div class="label">Respuesta:</div>
+        <div id="respuesta">Esperando consulta...</div>
+    </div>
+
+</div>
 
 <script>
 
@@ -50,9 +155,19 @@ function escuchar(){
         window.SpeechRecognition ||
         window.webkitSpeechRecognition;
 
+    if(!SpeechRecognition){
+        alert("Tu navegador no soporta reconocimiento de voz.");
+        return;
+    }
+
     const recognition = new SpeechRecognition();
 
     recognition.lang = "es-ES";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    document.getElementById("estado").innerHTML =
+        "🎙️ Escuchando...";
 
     recognition.start();
 
@@ -61,39 +176,61 @@ function escuchar(){
         const pregunta =
             event.results[0][0].transcript;
 
-        document.getElementById("pregunta")
-            .innerHTML =
-            "Pregunta: " + pregunta;
+        document.getElementById("pregunta").innerHTML =
+            pregunta;
 
-        const respuesta = await fetch(
-            "/preguntar",
-            {
-                method:"POST",
-                headers:{
-                    "Content-Type":"application/json"
-                },
-                body:JSON.stringify({
-                    pregunta:pregunta
-                })
-            }
-        );
+        document.getElementById("estado").innerHTML =
+            "🔍 Buscando respuesta...";
 
-        const data = await respuesta.json();
+        try{
 
-        document.getElementById("respuesta")
-            .innerHTML =
-            "<b>Respuesta:</b><br><br>" +
-            data.respuesta;
-
-        const voz =
-            new SpeechSynthesisUtterance(
-                data.respuesta
+            const respuesta = await fetch(
+                "/preguntar",
+                {
+                    method:"POST",
+                    headers:{
+                        "Content-Type":"application/json"
+                    },
+                    body:JSON.stringify({
+                        pregunta:pregunta
+                    })
+                }
             );
 
-        voz.lang = "es-ES";
+            const data = await respuesta.json();
 
-        speechSynthesis.speak(voz);
+            document.getElementById("respuesta").innerHTML =
+                data.respuesta;
+
+            document.getElementById("estado").innerHTML =
+                "✅ Respuesta encontrada";
+
+            const voz =
+                new SpeechSynthesisUtterance(
+                    data.respuesta
+                );
+
+            voz.lang = "es-ES";
+            voz.rate = 1;
+
+            speechSynthesis.speak(voz);
+
+        }catch(error){
+
+            document.getElementById("estado").innerHTML =
+                "❌ Error al consultar";
+
+        }
+
     };
+
+    recognition.onerror = function(){
+
+        document.getElementById("estado").innerHTML =
+            "❌ No se pudo reconocer la voz";
+
+    };
+
 }
 
 </script>
